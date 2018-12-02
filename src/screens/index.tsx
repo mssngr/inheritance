@@ -1,57 +1,137 @@
 import React from 'react'
+import styled from 'styled-components'
 
-import Grid from '../components/Grid'
+import { nullArray } from 'utils'
 
-const columnCount = 4000
-const rowCount = 4000
+/* STYLES */
+const tileSize = 50
+
+const Container = styled.div`
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+`
+
+const Character = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: ${tileSize / 1.5}px;
+  height: ${tileSize / 1.5}px;
+  background-color: black;
+  border-radius: 50%;
+`
+
+const GridContainer = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+`
+
+const SubRowContainer = styled.div`
+  display: flex;
+  flex-wrap: nowrap;
+`
+
+const CellContainer = styled.div`
+  width: ${tileSize}px;
+  height: ${tileSize}px;
+  border: 1px solid gray;
+  background-color: white;
+  box-sizing: border-box;
+`
+
+/* PRESENTATION */
+interface CellProps {
+  rowIndex: number
+  columnIndex: number
+}
+class Cell extends React.PureComponent<
+  CellProps & {
+    upperRowIndex: number
+    upperColumnIndex: number
+  }
+> {
+  render() {
+    const {
+      rowIndex,
+      columnIndex,
+      upperRowIndex,
+      upperColumnIndex,
+    } = this.props
+    return (
+      <CellContainer>
+        {upperColumnIndex},{upperRowIndex}
+        <br />
+        {columnIndex},{rowIndex}
+      </CellContainer>
+    )
+  }
+}
+
+const renderCellComponent: (
+  columnIndex: number,
+  rowIndex: number
+) => React.SFC<CellProps> = (columnIndex, rowIndex) => props => (
+  <Cell upperColumnIndex={columnIndex} upperRowIndex={rowIndex} {...props} />
+)
+
+const SubGrid: React.SFC<CellProps> = props => (
+  <Grid
+    columnCount={20}
+    rowCount={20}
+    CellComponent={renderCellComponent(props.columnIndex, props.rowIndex)}
+    {...props}
+  />
+)
+
+class Row extends React.PureComponent<{
+  rowIndex: number
+  columnCount: number
+  CellComponent: React.FunctionComponent<CellProps>
+}> {
+  render() {
+    const { columnCount, rowIndex, CellComponent } = this.props
+    return nullArray(columnCount).map((item: null, index: number) => (
+      <CellComponent
+        key={`${rowIndex}-${index}`}
+        rowIndex={rowIndex}
+        columnIndex={index}
+      />
+    ))
+  }
+}
+
+class Grid extends React.PureComponent<{
+  columnCount: number
+  rowCount: number
+  CellComponent: React.FunctionComponent<CellProps>
+}> {
+  render() {
+    const { columnCount, rowCount, CellComponent } = this.props
+    return nullArray(rowCount).map((item: null, index: number) => (
+      <Row
+        key={`${index}`}
+        rowIndex={index}
+        columnCount={columnCount}
+        CellComponent={CellComponent}
+      />
+    ))
+  }
+}
 
 export default class Home extends React.Component {
   render() {
     return (
-      <Grid
-        columnCount={columnCount}
-        rowCount={rowCount}
-        estimatedColumnWidth={128}
-        estimatedRowHeight={32}
-        renderCell={this.renderCell}
-        columnWidth={this.calculateColumnWidth}
-        rowHeight={this.calculateRowHeight}
-      />
-    )
-  }
-
-  calculateColumnWidth = (column: number) => {
-    // calculate the width, or null if you're not sure yet because data hasn't loaded
-    return 128
-  }
-
-  calculateRowHeight = (row: number) => {
-    // calculate the height, or null if you're not sure yet because data hasn't loaded
-    return 32
-  }
-
-  renderCell = (
-    row: number,
-    rowData: number[],
-    column: number,
-    columnData: number[]
-  ) => {
-    const [colIndex, colLeft, width] = columnData
-    const [rowIndex, rowTop, height] = rowData
-
-    // const cellNumber = (rowIndex * this.state.columnCount) + colIndex;
-
-    const left = column < 1 ? 0 : colLeft
-    const top = row < 1 ? 0 : rowTop
-
-    const attrs = { left, top, width, height }
-
-    const title = rowIndex + '-' + colIndex
-
-    return (
-      <div key={rowIndex + '-' + colIndex} style={attrs}>
-        {title}
-      </div>
+      <Container>
+        <GridContainer>
+          <Grid columnCount={20} rowCount={20} CellComponent={SubGrid} />
+        </GridContainer>
+        <Character />
+      </Container>
     )
   }
 }
