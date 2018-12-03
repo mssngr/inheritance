@@ -1,7 +1,18 @@
 import React from 'react'
-import styled from 'styled-components'
+import styled, { StyledComponent } from 'styled-components'
 
-import { nullArray } from 'utils'
+import { nullArray } from '../utils'
+
+/* TYPES */
+interface OffsetState {
+  x: number
+  y: number
+}
+
+interface CellProps {
+  rowIndex: number
+  columnIndex: number
+}
 
 /* STYLES */
 const tileSize = 50
@@ -24,35 +35,47 @@ const Character = styled.div`
   border-radius: 50%;
 `
 
-const GridContainer = styled.div`
+const GridContainer = styled<any>('div')`
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: calc(50% - ${tileSize / 2}px);
+  left: calc(50% - ${tileSize / 2}px);
+  transform: translate(
+    ${props => props.offset.x}px,
+    ${props => props.offset.y}px
+  );
 `
 
-const SubRowContainer = styled.div`
+const RowsContainer = styled.div`
   display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+`
+
+const CellComponentsContainer = styled.div`
+  display: flex;
+  flex-direction: row;
   flex-wrap: nowrap;
 `
 
 const CellContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
   width: ${tileSize}px;
   height: ${tileSize}px;
   border: 1px solid gray;
   background-color: white;
   box-sizing: border-box;
+  font-size: 10px;
 `
 
 /* PRESENTATION */
-interface CellProps {
-  rowIndex: number
-  columnIndex: number
-}
 class Cell extends React.PureComponent<
   CellProps & {
     upperRowIndex: number
     upperColumnIndex: number
+    columnCount: number
+    rowCount: number
   }
 > {
   render() {
@@ -61,12 +84,13 @@ class Cell extends React.PureComponent<
       columnIndex,
       upperRowIndex,
       upperColumnIndex,
+      columnCount,
+      rowCount,
     } = this.props
     return (
       <CellContainer>
-        {upperColumnIndex},{upperRowIndex}
-        <br />
-        {columnIndex},{rowIndex}
+        {upperColumnIndex * columnCount + columnIndex},
+        {upperRowIndex * rowCount + rowIndex}
       </CellContainer>
     )
   }
@@ -74,19 +98,41 @@ class Cell extends React.PureComponent<
 
 const renderCellComponent: (
   columnIndex: number,
-  rowIndex: number
-) => React.SFC<CellProps> = (columnIndex, rowIndex) => props => (
-  <Cell upperColumnIndex={columnIndex} upperRowIndex={rowIndex} {...props} />
-)
-
-const SubGrid: React.SFC<CellProps> = props => (
-  <Grid
-    columnCount={20}
-    rowCount={20}
-    CellComponent={renderCellComponent(props.columnIndex, props.rowIndex)}
+  rowIndex: number,
+  columnCount: number,
+  rowCount: number
+) => React.SFC<CellProps> = (
+  columnIndex,
+  rowIndex,
+  columnCount,
+  rowCount
+) => props => (
+  <Cell
+    upperColumnIndex={columnIndex}
+    upperRowIndex={rowIndex}
+    columnCount={columnCount}
+    rowCount={rowCount}
     {...props}
   />
 )
+
+const SubGrid: React.SFC<CellProps> = props => {
+  const columnCount = 20
+  const rowCount = 20
+  return (
+    <Grid
+      columnCount={columnCount}
+      rowCount={rowCount}
+      CellComponent={renderCellComponent(
+        props.columnIndex,
+        props.rowIndex,
+        columnCount,
+        rowCount
+      )}
+      {...props}
+    />
+  )
+}
 
 class Row extends React.PureComponent<{
   rowIndex: number
@@ -95,13 +141,17 @@ class Row extends React.PureComponent<{
 }> {
   render() {
     const { columnCount, rowIndex, CellComponent } = this.props
-    return nullArray(columnCount).map((item: null, index: number) => (
-      <CellComponent
-        key={`${rowIndex}-${index}`}
-        rowIndex={rowIndex}
-        columnIndex={index}
-      />
-    ))
+    return (
+      <CellComponentsContainer>
+        {nullArray(columnCount).map((item: null, index: number) => (
+          <CellComponent
+            key={`${rowIndex}-${index}`}
+            rowIndex={rowIndex}
+            columnIndex={index}
+          />
+        ))}
+      </CellComponentsContainer>
+    )
   }
 }
 
@@ -112,23 +162,73 @@ class Grid extends React.PureComponent<{
 }> {
   render() {
     const { columnCount, rowCount, CellComponent } = this.props
-    return nullArray(rowCount).map((item: null, index: number) => (
-      <Row
-        key={`${index}`}
-        rowIndex={index}
-        columnCount={columnCount}
-        CellComponent={CellComponent}
-      />
-    ))
+    return (
+      <RowsContainer>
+        {nullArray(rowCount).map((item: null, index: number) => (
+          <Row
+            key={`${index}`}
+            rowIndex={index}
+            columnCount={columnCount}
+            CellComponent={CellComponent}
+          />
+        ))}
+      </RowsContainer>
+    )
   }
 }
 
-export default class Home extends React.Component {
+export default class Home extends React.Component<{}, { offset: OffsetState }> {
+  state = {
+    offset: {
+      x: 0,
+      y: 0,
+    },
+  }
+
+  componentDidMount() {
+    window.addEventListener('keydown', this.handleKeydown)
+  }
+
+  handleKeydown = (e: KeyboardEvent) => {
+    switch (e.key) {
+      case 'w': {
+        console.log('up')
+        break
+      }
+      case 'a': {
+        console.log('left')
+        break
+      }
+      case 's': {
+        console.log('down')
+        break
+      }
+      case 'd': {
+        console.log('right')
+        break
+      }
+    }
+  }
+
+  animate = () => {}
+
+  animateStart = () => {
+    this.animate()
+    this.animateInterval = window.setInterval(this.animate, 1)
+  }
+
+  animateStop = () => {
+    if (this.animateInterval) {
+      window.clearInterval(this.animateInterval)
+    }
+    this.state.charPos.stopAnimation()
+  }
+
   render() {
     return (
       <Container>
-        <GridContainer>
-          <Grid columnCount={20} rowCount={20} CellComponent={SubGrid} />
+        <GridContainer offset={this.state.offset}>
+          <Grid columnCount={2} rowCount={2} CellComponent={SubGrid} />
         </GridContainer>
         <Character />
       </Container>
