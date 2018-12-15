@@ -1,5 +1,8 @@
 import React from 'react'
 import styled, { StyledComponent } from 'styled-components'
+import { forEach } from 'lodash'
+import keyMirror from 'keymirror'
+import { TweenLite } from 'gsap'
 
 import { nullArray } from '../utils'
 
@@ -31,18 +34,18 @@ const Character = styled.div`
   transform: translate(-50%, -50%);
   width: ${tileSize / 1.5}px;
   height: ${tileSize / 1.5}px;
-  background-color: black;
+  background-color: cyan;
   border-radius: 50%;
 `
 
-const GridContainer = styled<any>('div')`
+const GridContainer = styled<any>('div').attrs({
+  style: ({ offset }: { offset: OffsetState }) => ({
+    transform: `translate(${offset.x}px, ${offset.y}px)`,
+  }),
+})`
   position: absolute;
   top: calc(50% - ${tileSize / 2}px);
   left: calc(50% - ${tileSize / 2}px);
-  transform: translate(
-    ${props => props.offset.x}px,
-    ${props => props.offset.y}px
-  );
 `
 
 const RowsContainer = styled.div`
@@ -64,10 +67,18 @@ const CellContainer = styled.div`
   width: ${tileSize}px;
   height: ${tileSize}px;
   border: 1px solid gray;
-  background-color: white;
+  color: gray;
   box-sizing: border-box;
   font-size: 10px;
 `
+
+/* UTILS */
+const directions: { [key: string]: string } = keyMirror({
+  UP: null,
+  LEFT: null,
+  DOWN: null,
+  RIGHT: null,
+})
 
 /* PRESENTATION */
 class Cell extends React.PureComponent<
@@ -177,61 +188,189 @@ class Grid extends React.PureComponent<{
   }
 }
 
-export default class Home extends React.Component<{}, { offset: OffsetState }> {
-  state = {
-    offset: {
-      x: 0,
-      y: 0,
-    },
+interface HomeState {
+  offset: OffsetState
+  isMoving: {
+    [key: string]: boolean
   }
+}
 
-  componentDidMount() {
-    window.addEventListener('keydown', this.handleKeydown)
-  }
-
-  handleKeydown = (e: KeyboardEvent) => {
-    switch (e.key) {
-      case 'w': {
-        console.log('up')
-        break
-      }
-      case 'a': {
-        console.log('left')
-        break
-      }
-      case 's': {
-        console.log('down')
-        break
-      }
-      case 'd': {
-        console.log('right')
-        break
-      }
-    }
-  }
-
-  animate = () => {}
-
-  animateStart = () => {
-    this.animate()
-    this.animateInterval = window.setInterval(this.animate, 1)
-  }
-
-  animateStop = () => {
-    if (this.animateInterval) {
-      window.clearInterval(this.animateInterval)
-    }
-    this.state.charPos.stopAnimation()
-  }
-
+export default class Home extends React.Component<{}, HomeState> {
   render() {
     return (
       <Container>
-        <GridContainer offset={this.state.offset}>
+        <GridContainer id="gridContainer" offset={this.state.offset}>
           <Grid columnCount={2} rowCount={2} CellComponent={SubGrid} />
         </GridContainer>
         <Character />
       </Container>
     )
+  }
+
+  state = {
+    offset: {
+      x: 0,
+      y: 0,
+    },
+    isMoving: {
+      [directions.UP]: false,
+      [directions.LEFT]: false,
+      [directions.DOWN]: false,
+      [directions.RIGHT]: false,
+    },
+  }
+
+  offsetX: { x: number } = {
+    x: 0,
+  }
+
+  offsetY: { y: number } = {
+    y: 0,
+  }
+
+  componentDidMount() {
+    document.addEventListener(
+      'keypress',
+      this.generateKeyPressHandler('keypress')
+    )
+    document.addEventListener('keyup', this.generateKeyPressHandler('keyup'))
+  }
+
+  componentDidUpdate(prevProps: {}, prevState: HomeState) {
+    const { isMoving } = this.state
+    forEach(prevState.isMoving, (value: boolean, key: string) => {
+      // Only trigger animation start or stop if the state changed
+      if (value !== isMoving[key]) {
+        if (isMoving[key]) {
+          this.animateMovementStart()
+        } else {
+          this.animateMovementStop()
+        }
+      }
+    })
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener(
+      'keypress',
+      this.generateKeyPressHandler('keypress')
+    )
+    document.removeEventListener('keyup', this.generateKeyPressHandler('keyup'))
+  }
+
+  generateKeyPressHandler = (pressType: String) => (e: KeyboardEvent) => {
+    const { isMoving } = this.state
+    switch (e.key) {
+      case 'w': {
+        if (isMoving[directions.UP] !== (pressType === 'keypress')) {
+          this.setState({
+            isMoving: {
+              ...isMoving,
+              [directions.UP]: pressType === 'keypress',
+            },
+          })
+        }
+        break
+      }
+      case 'a': {
+        if (isMoving[directions.LEFT] !== (pressType === 'keypress')) {
+          this.setState({
+            isMoving: {
+              ...isMoving,
+              [directions.LEFT]: pressType === 'keypress',
+            },
+          })
+        }
+        break
+      }
+      case 's': {
+        if (isMoving[directions.DOWN] !== (pressType === 'keypress')) {
+          this.setState({
+            isMoving: {
+              ...isMoving,
+              [directions.DOWN]: pressType === 'keypress',
+            },
+          })
+        }
+        break
+      }
+      case 'd': {
+        if (isMoving[directions.RIGHT] !== (pressType === 'keypress')) {
+          this.setState({
+            isMoving: {
+              ...isMoving,
+              [directions.RIGHT]: pressType === 'keypress',
+            },
+          })
+        }
+        break
+      }
+    }
+  }
+
+  animateMovement = () => {
+    forEach(this.state.isMoving, (isDirectionMoving, direction) => {
+      if (isDirectionMoving) {
+        switch (direction) {
+          case directions.UP: {
+            TweenLite.to(this.offsetY, 0.1, {
+              y: this.state.offset.y + 10,
+              onUpdate: () => {
+                this.setState({
+                  offset: { ...this.state.offset, y: this.offsetY.y },
+                })
+              },
+            })
+            break
+          }
+          case directions.LEFT: {
+            TweenLite.to(this.offsetX, 0.1, {
+              x: this.state.offset.x + 10,
+              onUpdate: () => {
+                this.setState({
+                  offset: { ...this.state.offset, x: this.offsetX.x },
+                })
+              },
+            })
+            break
+          }
+          case directions.DOWN: {
+            TweenLite.to(this.offsetY, 0.1, {
+              y: this.state.offset.y - 10,
+              onUpdate: () => {
+                this.setState({
+                  offset: { ...this.state.offset, y: this.offsetY.y },
+                })
+              },
+            })
+            break
+          }
+          case directions.RIGHT: {
+            TweenLite.to(this.offsetX, 0.1, {
+              x: this.state.offset.x - 10,
+              onUpdate: () => {
+                this.setState({
+                  offset: { ...this.state.offset, x: this.offsetX.x },
+                })
+              },
+            })
+            break
+          }
+        }
+      }
+    })
+  }
+
+  moveAnimationInterval?: number = undefined
+
+  animateMovementStart = () => {
+    this.animateMovement()
+    this.moveAnimationInterval = window.setInterval(this.animateMovement, 100)
+  }
+
+  animateMovementStop = () => {
+    if (this.moveAnimationInterval) {
+      window.clearInterval(this.moveAnimationInterval)
+    }
   }
 }

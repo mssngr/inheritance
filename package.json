@@ -5,6 +5,7 @@
   "dependencies": {
     "@types/gsap": "^1.20.0",
     "@types/jest": "23.3.10",
+    "@types/keymirror": "^0.1.1",
     "@types/lodash": "^4.14.118",
     "@types/node": "10.12.11",
     "@types/react": "16.7.11",
@@ -12,6 +13,7 @@
     "@types/react-window": "^1.1.0",
     "@types/styled-components": "^4.1.2",
     "gsap": "^2.0.2",
+    "keymirror": "^0.1.1",
     "lodash": "^4.17.11",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
